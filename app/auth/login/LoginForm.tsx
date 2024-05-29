@@ -1,9 +1,9 @@
 "use client"
 
 import { z } from "zod"
-import { useForm } from "react-hook-form"
+import { FieldPath, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useTransition } from "react"
+import { useState, useTransition } from "react"
 import { loginValidator } from "@/validators/authValidator"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
@@ -17,9 +17,12 @@ import {
 } from "@/components/ui/form"
 import FormFieldSet from "@/components/ui/form-fieldset"
 import { Input } from "@/components/ui/input"
+import { login } from "@/actions/authActions"
+import { Alert } from "@/components/ui/alert"
 
 const LoginForm = () => {
   const [pending, startTransition] = useTransition()
+  const [formAlert, setFormAlert] = useState("")
 
   const form = useForm<z.infer<typeof loginValidator>>({
     resolver: zodResolver(loginValidator),
@@ -29,7 +32,20 @@ const LoginForm = () => {
     },
   })
 
-  const onSubmit = (values: z.infer<typeof loginValidator>) => {}
+  const onSubmit = (values: z.infer<typeof loginValidator>) => {
+    startTransition(async () => {
+      const response = await login(values)
+      if (response?.validationError) {
+        response.validationError.map(({ path, message }) => {
+          form.setError(path as FieldPath<typeof values>, {
+            message,
+          })
+        })
+      } else if (response?.error) {
+        setFormAlert(response.error)
+      }
+    })
+  }
 
   return (
     <Form {...form}>
@@ -61,6 +77,7 @@ const LoginForm = () => {
               </FormItem>
             )}
           />
+          <Alert title={formAlert} />
           <div className="flex justify-between gap-2 mb-4">
             <Link
               href="/auth/forgot-password"
